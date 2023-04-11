@@ -1,56 +1,213 @@
-#include <TFT.h>  // 아두이노 LCD 라이브러리 포함
-#include <SPI.h>  // 아두이노 SPI 라이브러리 포함
- 
-#define dc  12  // DC or A0를 12번 핀에
-#define rst 13  // RESET은 13번 핀에
-#define cs  14  // CS를 14번 핀에
-#define ir  25  // 적외선 센서 25번 핀에
-#define mA  33  // 모터 드라이버 A 33번 핀에
-#define mB  32  // 모터 드라이버 B 32번 핀에
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#include <SPI.h>
+#include <WiFi.h>
+#include "FirebaseESP32.h"
+#include <HardwareSerial.h>
 
-TFT TFTscreen = TFT(cs, dc, rst);    // TFT 클래스 생성
-char sensorPrintout[4];              // 센서 값을 저장할 변수
+
+
+#define FIREBASE_HOST "https://usg-project-5aa12-default-rtdb.firebaseio.com" //Change to your Firebase RTDB project ID e.g. Your_Project_ID.firebaseio.com
+#define FIREBASE_AUTH "ZltPODHHk66Dj00yIF3gFUAX0FegLbAKwUb22d03" //Change to your Firebase RTDB secret password
+
+
+
+#define TFT_CS     33
+#define TFT_RST    14  
+#define TFT_DC     26
+//#define SCK      18
+//#define SDA/MOSI 23
+#define TX 17
+#define RX 16
+
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
+FirebaseData firebaseData;
+HardwareSerial Sender(2);
+HardwareSerial Receiver(2);
+
+
+int uv = 0;
+int area = 3000;
+byte num = 0;
+bool con = true;
+
+
+/* 저장값(num)
+0 : 변경사항 없음
+1 : 현재 위치 변경
+2 : 자외선 값 변경
+3 : 얼굴 면적 값 변경
+4 : 새로운 사진 등록
+ */
+
+/********************************************************************************************/
+
 
 void setup() 
 {
-  TFTscreen.begin();                           // TFT 클래스 시작
-  TFTscreen.background(0, 0, 0);               // 검정색으로 화면 초기화
-  TFTscreen.stroke(255, 255, 255);             // 폰트 색깔 흰색으로 설정
-  TFTscreen.setTextSize(2);                    // 폰트 크기 2로 설정
-  TFTscreen.text("Sensor Value :\n ", 0, 0);   // LCD에 글씨 표시 
-  TFTscreen.setTextSize(5);                    // 폰트 크기 5로 설정
-  pinMode(ir, INPUT);                          // 적외선 센서 핀번호 선언
-  pinMode(mA, OUTPUT);                         // 모터 드라이버 A 핀번호 선언 
-  pinMode(mB, OUTPUT);                         // 모터 드라이버 B 핀번호 선언 
+  //시리얼 통신
+  Serial.begin(115200);
+  Sender.begin(115200, SERIAL_8N1, TX, RX);
+  Receiver.begin(115200, SERIAL_8N1, TX, RX);
+
+
+  //LCD 선언
+  tft.initR(INITR_BLACKTAB);
+  tft.setRotation(1);   
 }
 
  
 void loop() 
 {
-   lcd();
+  
+  //WiFi가 연결되어 있을 경우
+  if(WiFi.status() == WL_CONNECTED){
+    
+    Firebase.getInt(firebaseData, "/Num", &num);  // num값을 가져옴
+    Serial.println(num);
+    if(!con){ //wifi 연결시 uv값을 한번 가져옴
+      Firebase.getInt(firebaseData, "/UV", &uv);
+      level(uv);
+      con=true;
+    }
+    
+    if(num=='2'){ // num이 2일 경우 
+      Firebase.getInt(firebaseData, "/UV", &uv);
+      Firebase.setInt(firebaseData, "/Num", 0);
+      level(uv);
+    }    
+    else if(num=='3'){ // num이 3일 경우
+      Firebase.getInt(firebaseData, "/area", &area);
+      Firebase.setInt(firebaseData, "/Num", 0);
+      Sender.print(area);
+      Serial.println(area);
+    }
+    
+    
+  }else{ //WiFi가 연결 안된 경우
+    if(con){
+      wifi_not();  
+      Serial.println("연결 안됨");
+      con=false;
+    }
+  }
+}
 
-   int val = analogRead(ir) ; // 적외선 센서값
-   if(val>0){                 // 적외선 센서에 감지되면 모터 작동
-    digitalWrite(mA, HIGH);
-    digitalWrite(mB, LOW);
-    delay(1000); 
-    digitalWrite(mA, LOW);
-    digitalWrite(mB, LOW);
-   }
+// wifi 로그인 하는 함수
+void login(char id[], char pw[]){
+  // 로그인이 시도되면 30초동안 시도하고 종료
+  WiFi.begin(id, pw);
+  for(int i=0; i<100; i++){
+    if(WiFi.status() != WL_CONNECTED){
+      delay(300);
+      Serial.println(".");
+    }
+    else{
+      Serial.println("연결 성공");
+      // 파이어베이스 연결
+      Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+      Firebase.reconnectWiFi(true);
+      break;
+    }
+  }
 }
 
 
-void lcd(){
-  String sensorVal = String(analogRead(A0));  // A0의 값을 받아와서 문자열 변수에 저장
- 
-  sensorVal.toCharArray(sensorPrintout, 4);  
-    // 읽어온 센서 문자열 변수를 가지고 각각의 캐릭터 변수에 저장
- 
-  TFTscreen.stroke(150, 0, 150);            // 폰트 색깔 설정
-  TFTscreen.text(sensorPrintout, 0, 20);    // LCD X:0, Y:20 위치에 글씨 표시
- 
-  delay(250);                               // 250ms 기다림
+
+// 블루투스로 로그인하는 함수
+void bl(){
   
-  TFTscreen.stroke(0, 0, 0);                // 글씨체 검정색으로
-  TFTscreen.text(sensorPrintout, 0, 20);    // 화면에서 안보이게 하기 위해 검정색으로 표시함
+  String str = Receiver.readStringUntil('\n');
+  Serial.println(str);
+  int id_2 = str.indexOf('"',2);
+  int pw_1 = str.indexOf('"',(id_2)+1);
+  int pw_2 = str.indexOf('"',(pw_1)+1);
+
+  String id_s = str.substring(2,id_2);
+  String pw_s = str.substring((pw_1)+1,pw_2);
+  char id[32] = {0};
+  char pw[32] = {0};
+  (id_s).toCharArray(id,((id_s).length()+1));
+  (pw_s).toCharArray(pw,((pw_s).length()+1));
+  Serial.println(id);
+  Serial.println(pw);
+  
+  login(id, pw);  
+  
+}
+
+// uv값을 입력하면 해당하는 등급의 화면을 표시하는 함수
+void level(int uv){
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setCursor(50, 110);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextSize(1.5);
+  tft.print("Level = ");
+  tft.print(uv);
+  
+  tft.setTextSize(4);
+  if(uv<3){
+      low();
+    }
+    else if(uv<6){
+      normal();
+    }
+    else if(uv<8){
+      high();
+    }
+    else if(uv<11){
+      veryHigh();
+    }
+    else{
+      danger();
+    }
+}
+
+// wifi가 연결 안됬을때 LCD 화면
+void wifi_not(){
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setCursor(30, 50);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextSize(2);
+  tft.print("WiFi not");
+  tft.setCursor(25, 70);
+  tft.print("connected");
+}
+
+// uv <3
+void low() {
+  tft.setCursor(47, 45);
+  tft.setTextColor(ST77XX_BLUE);
+  tft.print("LOW");
+}
+
+// 3<= uv <6
+void normal(){
+  tft.setCursor(12, 50);
+  tft.setTextColor(ST77XX_GREEN);
+  tft.print("NORMAL");
+}
+
+// 6<= uv <8
+void high(){
+  tft.setCursor(35, 50);
+  tft.setTextColor(ST77XX_YELLOW);
+  tft.print("HIGH");
+}
+
+// 8<= uv <11
+void veryHigh(){
+  tft.setCursor(35, 30);
+  tft.setTextColor(ST77XX_MAGENTA);
+  tft.print("VERY");
+  tft.setCursor(35, 70);
+  tft.print("HIGH");
+}
+
+// 11<= uv
+void danger(){
+  tft.setCursor(10, 50);
+  tft.setTextColor(ST77XX_RED);
+  tft.print("DANGER");
 }
