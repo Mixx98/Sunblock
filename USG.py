@@ -5,14 +5,14 @@ import numpy
 from datetime import datetime
 
 config = {
-    "apiKey": "AIzaSyD70eG1rAxbiRoPyX6OJPp1G8mFo4_uA-A",
-    "authDomain": "usg-project-5aa12.firebaseapp.com",
-    "databaseURL": "https://usg-project-5aa12-default-rtdb.firebaseio.com",
-    "projectId": "usg-project-5aa12",
-    "storageBucket": "usg-project-5aa12.appspot.com",
-    "messagingSenderId": "459469217132",
-    "appId": "1:459469217132:web:1097d1d90504e597612749",
-    "measurementId": "G-REKZTP18HW"
+    "apiKey": "",
+    "authDomain": "",
+    "databaseURL": "",
+    "projectId": "",
+    "storageBucket": "",
+    "messagingSenderId": "",
+    "appId": "",
+    "measurementId": ""
 }
 
 firebase = pyrebase.initialize_app(config)
@@ -45,7 +45,7 @@ def UV(): #실시간 UV지수를 구하는 함수
             break
 
     url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV3/getUVIdxV3'
-    queryParams = '?' + 'serviceKey=' + 'd8gYBgdr1DKbClLtN6BSU3vJO9Vj3uYNT%2F9LxMo1Rx3gBLUvrX1Q7og%2BZ9pvIAop36WDe7dHhDLzjX5aVtEBxA%3D%3D' \
+    queryParams = '?' + 'serviceKey=' + '' \
             + '&areaNo=' + code \
             + '&time=' + now.strftime('%Y%m%d%H') \
             + '&dataType=' + 'json'

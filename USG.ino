@@ -7,8 +7,8 @@
 
 
 
-#define FIREBASE_HOST "https://usg-project-5aa12-default-rtdb.firebaseio.com" //Change to your Firebase RTDB project ID e.g. Your_Project_ID.firebaseio.com
-#define FIREBASE_AUTH "ZltPODHHk66Dj00yIF3gFUAX0FegLbAKwUb22d03" //Change to your Firebase RTDB secret password
+#define FIREBASE_HOST "" //Change to your Firebase RTDB project ID e.g. Your_Project_ID.firebaseio.com
+#define FIREBASE_AUTH "" //Change to your Firebase RTDB secret password
 
 
 
